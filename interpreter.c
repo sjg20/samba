@@ -34,6 +34,9 @@ static at91_t *check_at91 (lua_State *L, int index)
 
 static int at91_init(at91_t *at91)
 {
+	/* Enable h/W reset */
+	writel((0xA5000000 | AT91C_RSTC_URSTEN), AT91C_BASE_RSTC + RSTC_RMR);
+
     /** SETUP CLOCKS */
     /* Configure PLLA = MOSC * (PLL_MULA + 1) / PLL_DIVA */
     pmc_cfg_plla(at91, PLLA_SETTINGS, PLL_LOCK_TIMEOUT);
