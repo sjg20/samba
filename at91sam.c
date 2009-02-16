@@ -175,7 +175,7 @@ static int at91_wait_for_prompt (at91_t *at91, char *result, int max_len, char p
                     *pos = '\0';
                 return pos - result;
             }
-            else if (strchr ("\r\t\n ", tmp[i]) == NULL) // not white space
+            else if (pos != result || strchr ("\r\t\n ", tmp[i]) == NULL) // not white space
                 if (pos && pos - result < max_len)
                     *pos++ = tmp[i];
         }
@@ -294,9 +294,23 @@ int at91_write_word (at91_t *at91, unsigned int addr, unsigned int value)
 
 int at91_version (at91_t *at91, char *result, int max_len)
 {
+    char *pos;
     if (at91_command (at91, "V#") < 0)
         return -1;
-    return at91_wait_for_prompt (at91, result, max_len, '>');
+    if (at91_wait_for_prompt (at91, result, max_len, '>') < 0)
+        return -1;
+
+    // strip trailing carriage returns
+    do {
+        pos = strrchr (result, '\r');
+        if (!pos)
+            pos = strrchr (result, '\n');
+
+        if (pos)
+            *pos = '\0';
+    } while(0);
+
+    return 0;
 }
 
 int at91_read_data (at91_t *at91, unsigned int address, unsigned char *data, int length)
@@ -387,7 +401,7 @@ int at91_verify_file(at91_t *at91, unsigned int address, const char *filename)
     return val == 0 ? 1 : 0;
 }
 
-int at91_write_data (at91_t *at91, unsigned int address, unsigned char *data, int length)
+int at91_write_data (at91_t *at91, unsigned int address, const unsigned char *data, int length)
 {
     int i;
     if (length == 0)

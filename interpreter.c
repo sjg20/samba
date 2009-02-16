@@ -101,7 +101,7 @@ static int l_at91close(lua_State *L)
 
 static int l_at91version(lua_State *L)
 {
-    char version[20];
+    char version[30];
     at91_t *at91 = check_at91(L, 1);
 
     if (at91_version (at91, version, sizeof (version)) < 0)
@@ -332,6 +332,29 @@ static int l_at91nand_write_file(lua_State *L)
 
 }
 
+static int l_at91nand_write_raw(lua_State *L)
+{
+    at91_t *at91 = check_at91(L, 1);
+    unsigned int addr = luaL_checknumber(L, 2);
+    size_t length;
+    const char *data = luaL_checklstring(L, 3, &length);
+
+    nand_write_raw (at91, addr, data, length);
+
+    return 0;
+}
+
+static int l_at91_nand_write_raw_file(lua_State *L)
+{
+    at91_t *at91 = check_at91(L, 1);
+    unsigned int addr = luaL_checknumber(L, 2);
+    const char *filename = luaL_checkstring(L, 3);
+
+    nand_write_raw_file (at91, addr, filename);
+
+    return 0;
+}
+
 static const luaL_reg meta_methods[] = {
     {"__gc", l_at91close },
     {0,0}
@@ -365,6 +388,8 @@ static const luaL_reg image_methods[] = {
     {"nand_erase", l_at91nand_erase},
     {"nand_write", l_at91nand_write},
     {"nand_write_file", l_at91nand_write_file},
+    {"nand_write_raw", l_at91nand_write_raw},
+    {"nand_write_raw_file", l_at91_nand_write_raw_file},
 
     /* UART */
     {"dbg_init", l_at91dbg_init},

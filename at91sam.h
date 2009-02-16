@@ -20,7 +20,7 @@ int at91_verify_file(at91_t *at91, unsigned int address, const char *filename);
 int at91_write_byte (at91_t *at91, unsigned int addr, unsigned char value);
 int at91_write_half_word (at91_t *at91, unsigned int addr, unsigned int value);
 int at91_write_word (at91_t *at91, unsigned int addr, unsigned int value);
-int at91_write_data (at91_t *at91, unsigned int address, unsigned char *data, int length);
+int at91_write_data (at91_t *at91, unsigned int address, const unsigned char *data, int length);
 int at91_write_file (at91_t *at91, unsigned int address, const char *filename);
 int at91_go (at91_t *at9, unsigned int address);
 

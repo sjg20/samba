@@ -41,5 +41,8 @@ int nand_correct_data(unsigned char *dat, unsigned char *read_ecc, unsigned char
 int nand_write (at91_t *at91, unsigned int addr, const char *data, int length);
 int nand_write_file (at91_t *at91, unsigned int addr, const char *filename);
 
+int nand_write_raw (at91_t *at91, unsigned int addr, const char *data, int length);
+int nand_write_raw_file (at91_t *at91, unsigned int addr, const char *filename);
+
 #endif
 

@@ -2,6 +2,7 @@
 #define COMMON_H
 #include <sys/time.h>
 #include <time.h>
+#include <stdint.h>
 
 #ifndef min
 #define min(x,y) ({ \
@@ -27,7 +28,7 @@
 #define PLL_LOCK_TIMEOUT        1000000
 
 /* PLLA = 18.432MHz * (126 + 1) / 13 = 180.07 MHz */
-#define PLLA_SETTINGS   ((1 << 29) | (126 << 16) | (2 << 13) | (0x3F << 8) | (13))
+#define PLLA_SETTINGS   ((1 << 29) | (126 << 16) | (0 << 14) | (0x3F << 8) | (13))
 
 /* Set PLLB to 18.432 MHz * (119 + 1) / ( 23 * 2 ^ 1 ) = 48.08 MHz */
 #define PLLB_SETTINGS   ((1 << 28) | (119 << 16) | (1 << 14) | (0x3f << 8) | 23)
@@ -39,6 +40,6 @@
     (((((mck) * 10) / ((baud) * 16)) % 10) >= 5) ? \
         (mck / (baud * 16) + 1) : ((mck) / (baud * 16))
 
-int progress (const char *reason, int upto, int total);
+int progress (const char *reason, uint64_t upto, uint64_t total);
 
 #endif /* COMMON_H */
