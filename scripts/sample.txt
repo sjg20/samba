@@ -1,0 +1,4 @@
+open sn9260
+write_file 0x23f00000 /home/andre/snapper/u-boot-1.1.6/u-boot.bin
+go 0x23f00000
+

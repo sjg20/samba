@@ -19,25 +19,6 @@
 static int at91_wait_for_prompt (at91_t *at91, char *result, int max_len, char prompt);
 static int at91_write (at91_t *at91, char *buffer, int len);
 
-#if 0
-static unsigned int crc16 (unsigned char *data, int length) // '123456789' == 31c3
-{
-    int crc = 0;
-    int i;
-
-    while (length--) {
-        crc = crc ^ (*data++ << 8);
-        for (i = 0; i < 8; i++) {
-            if (crc & 0x8000)
-                crc = ((crc << 1) ^ 0x1021);
-            else
-                crc <<= 1;
-        }
-    }
-    return (crc & 0xffff);
-}
-#endif
-
 static struct usb_device *find_usb_device(int vendor_id, int product_id)
 {
     struct usb_bus *bus;
@@ -120,41 +101,11 @@ err:
 
 void at91_close (at91_t *at91)
 {
+    if (!at91)
+        return;
     usb_release_interface(at91, 0);
     usb_close(at91);
 }
-
-#if 0
-static int at91_wait_for_ack (at91_t *at91)
-{
-    int len;
-    char tmp[1000];
-    int count = 0;
-    int i;
-    
-    while (count < 10) {
-        len=usb_bulk_read(at91, EP_IN, tmp, sizeof(tmp), 500);
-        //printf ("Got %d chars\n", len);
-        for (i = 0; i < len; i++) {
-            //printf ("%d [%c]\n", tmp[i], tmp[i]);
-            if (tmp[i] == 0x6) 
-                return 0;
-            else if (tmp[i] == 0x18) {
-                fprintf (stderr, "Transfer cancelled by other end - CRC error?\n");
-                return -1;
-            } else {
-                fprintf (stderr, "Unknown ack response - %d\n", tmp[i]);
-                return -1;
-            }
-        }
-        count++;
-        //printf ("Waiting for ack %d\n", count);
-    }
-    
-    fprintf (stderr, "Error: Timeout waiting for AT91 ack\n");
-    return -1;
-}
-#endif
 
 static int at91_wait_for_prompt (at91_t *at91, char *result, int max_len, char prompt)
 {
@@ -163,6 +114,11 @@ static int at91_wait_for_prompt (at91_t *at91, char *result, int max_len, char p
     char *pos = result;
     int count = 0;
     int i;
+
+    if (!at91) {
+        fprintf (stderr, "AT91 not connected\n"); 
+        return -1;
+    }
    
     //printf ("Waiting for '%c' [%d] prompt\n", prompt, prompt);
     while (count < 10) {
@@ -175,7 +131,7 @@ static int at91_wait_for_prompt (at91_t *at91, char *result, int max_len, char p
                     *pos = '\0';
                 return pos - result;
             }
-            else if (pos != result || strchr ("\r\t\n ", tmp[i]) == NULL) // not white space
+            else if (pos != result || strchr ("\r\t\n ", tmp[i]) == NULL) // not white space, or not first char
                 if (pos && pos - result < max_len)
                     *pos++ = tmp[i];
         }
@@ -190,6 +146,11 @@ static int at91_wait_for_prompt (at91_t *at91, char *result, int max_len, char p
 static int at91_write (at91_t *at91, char *buffer, int len)
 {
     int write_len;
+
+    if (!at91) {
+        fprintf (stderr, "AT91 not connected\n");
+        return -1;
+    }
 
     assert (len <= 64);
     write_len = usb_bulk_write(at91, EP_OUT, buffer, len, 500);
@@ -231,7 +192,7 @@ static int at91_command (usb_dev_handle *at91, char *string,...)
         return -1;
     }
     if (at91_write(at91, buffer, len) < 0) {
-        fprintf (stderr, "Unable to write '%s' at91 command\n", buffer);
+        fprintf (stderr, "Unable to write '%s' AT91 command\n", buffer);
         return -1;
     }
     //printf ("Sent command: %s\n", buffer);
@@ -467,4 +428,5 @@ int at91_go (at91_t *at91, unsigned int address)
     //return at91_wait_for_prompt (at91, NULL, 0, '>'); 
     return 0;
 }
+
 
