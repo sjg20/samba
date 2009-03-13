@@ -113,6 +113,11 @@ int command_exec (int argc, const char *argv[])
         const char *file = argv[2];
 
         return nand_write_file (at91, addr, file);
+    } else if (strcasecmp (argv[0], "nand_write_raw_file") == 0 && argc >= 3) {
+        unsigned int addr = strtoul(argv[1], NULL, 0);
+        const char *file = argv[2];
+
+        return nand_write_raw_file (at91, addr, file);
     } else {
         fprintf (stderr, "Invalid command: %s\n", argv[0]);
         return -1;
