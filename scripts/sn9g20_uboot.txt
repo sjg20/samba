@@ -1,0 +1,3 @@
+open sn9g20
+write_file 0x23f00000 /home/ryan/work/u-boot-1.1.6/u-boot.bin
+go 0x23f00000
