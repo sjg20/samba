@@ -1,4 +1,4 @@
 open sn9260
-write_file 0x20000000 ../images/sn9260_memtest.bin
+write_file 0x20000000 /work/internal/builds/latest/sn9260_memtest/sn9260_memtest.bin
 go 0x20000000
 
