@@ -11,10 +11,16 @@
 #include "common.h"
 
 #define MAX_BLOCK_SIZE 64
-
+#define USB_TIMEOUT 1000
 
 #define EP_IN 0x82
 #define EP_OUT 0x01 // from lsusb -v
+
+#if 0
+#define dbg(a,b...) printf ("DBG: " a "\n" , ##b)
+#else
+#define dbg(a,b...) do {} while (0)
+#endif
 
 static int at91_wait_for_prompt (at91_t *at91, char *result, int max_len, char prompt);
 static int at91_write (at91_t *at91, char *buffer, int len);
@@ -24,7 +30,7 @@ static struct usb_device *find_usb_device(int vendor_id, int product_id)
     struct usb_bus *bus;
     struct usb_device *dev;
 
-    for (bus = usb_busses; bus; bus = bus->next)
+    for (bus = usb_get_busses(); bus; bus = bus->next)
         for (dev = bus->devices; dev; dev = dev->next)
             if (dev->descriptor.idVendor == vendor_id
                     && dev->descriptor.idProduct == product_id)
@@ -103,14 +109,14 @@ void at91_close (at91_t *at91)
 {
     if (!at91)
         return;
-    usb_release_interface(at91, 0);
+    usb_release_interface(at91, 1);
     usb_close(at91);
 }
 
 static int at91_wait_for_prompt (at91_t *at91, char *result, int max_len, char prompt)
 {
     int len;
-    char tmp[1000];
+    char tmp[MAX_BLOCK_SIZE];
     char *pos = result;
     int count = 0;
     int i;
@@ -121,14 +127,19 @@ static int at91_wait_for_prompt (at91_t *at91, char *result, int max_len, char p
     }
    
     //printf ("Waiting for '%c' [%d] prompt\n", prompt, prompt);
-    while (count < 10) {
-        len=usb_bulk_read(at91, EP_IN, tmp, sizeof(tmp), 500);
+    while (count < 100) {
+        len=usb_bulk_read(at91, EP_IN, tmp, sizeof(tmp), USB_TIMEOUT);
+        if (len < 0) {
+            fprintf (stderr, "Unable to read from usb device: %s\n", strerror (errno));
+            return -1;
+        }
         //printf ("Got %d chars\n", len);
         for (i = 0; i < len; i++) {
             //printf ("%d [%c, 0x%x]\n", tmp[i], tmp[i], tmp[i]);
             if (tmp[i] == prompt) {
                 if (pos)
                     *pos = '\0';
+                dbg ("Got prompt: %s", result);
                 return pos - result;
             }
             else if (pos != result || strchr ("\r\t\n ", tmp[i]) == NULL) // not white space, or not first char
@@ -152,8 +163,12 @@ static int at91_write (at91_t *at91, char *buffer, int len)
         return -1;
     }
 
-    assert (len <= 64);
-    write_len = usb_bulk_write(at91, EP_OUT, buffer, len, 500);
+    assert (len <= MAX_BLOCK_SIZE);
+    write_len = usb_bulk_write(at91, EP_OUT, buffer, len, USB_TIMEOUT);
+    if (write_len < 0) {
+        fprintf (stderr, "USB Write failure: %s\n", strerror (errno));
+        return -1;
+    }
     if (write_len != len) {
         fprintf (stderr, "usb bulk write was odd: %d != %d\n", 
                 write_len, len);
@@ -166,9 +181,9 @@ static int at91_read (at91_t *at91, char *buffer, int len)
 {
     int read_len;
 
-    assert (len <= 64);
+    assert (len <= MAX_BLOCK_SIZE);
 
-    read_len = usb_bulk_read(at91, EP_IN, buffer, len, 500);
+    read_len = usb_bulk_read(at91, EP_IN, buffer, len, USB_TIMEOUT);
     if (read_len < 0) {
         fprintf (stderr, "usb bulk read failure: %d [%s]\n", errno, strerror (errno));
         return -1;
@@ -185,12 +200,14 @@ static int at91_command (usb_dev_handle *at91, char *string,...)
     va_start (ap,string);
     len = vsnprintf (buffer, sizeof (buffer) - 1, string, ap);
     va_end (ap);
-    buffer[len] = '\0';
 
     if (len <= 0) {
         fprintf (stderr, "Attempt to send nul at91 command\n");
         return -1;
     }
+    buffer[len++] = '\r';
+    buffer[len++] = '\n';
+    buffer[len++] = '\0';
     if (at91_write(at91, buffer, len) < 0) {
         fprintf (stderr, "Unable to write '%s' AT91 command\n", buffer);
         return -1;
@@ -203,6 +220,8 @@ int at91_read_byte(at91_t *at91, unsigned int addr)
 {
     char buffer[100];
 
+    dbg ("read byte @0x%x", addr);
+
     if (at91_command (at91, "o%X,#", addr) < 0)
         return -1;
     if (at91_wait_for_prompt (at91, buffer, sizeof (buffer), '>') < 0)
@@ -213,6 +232,8 @@ int at91_read_byte(at91_t *at91, unsigned int addr)
 int at91_read_half_word (at91_t *at91, unsigned int addr)
 {
     char buffer[100];
+
+    dbg ("read half word @0x%x", addr);
 
     if (at91_command (at91, "h%X,#", addr) < 0)
         return -1;
@@ -225,6 +246,8 @@ int at91_read_word (at91_t *at91, unsigned int addr)
 {
     char buffer[100];
 
+    dbg ("read word @0x%x", addr);
+
     if (at91_command (at91, "w%X,#", addr) < 0)
         return -1;
     if (at91_wait_for_prompt (at91, buffer, sizeof (buffer), '>') < 0)
@@ -234,6 +257,8 @@ int at91_read_word (at91_t *at91, unsigned int addr)
 
 int at91_write_byte (at91_t *at91, unsigned int addr, unsigned char value)
 {
+    dbg ("write byte @0x%x: 0x%x", addr, value);
+
     if (at91_command (at91, "O%X,%X#", addr, value) < 0)
         return -1;
     return at91_wait_for_prompt (at91, NULL, 0, '>');
@@ -241,6 +266,8 @@ int at91_write_byte (at91_t *at91, unsigned int addr, unsigned char value)
 
 int at91_write_half_word (at91_t *at91, unsigned int addr, unsigned int value)
 {
+    dbg ("write half word @0x%x: 0x%x", addr, value);
+
     if (at91_command (at91, "H%X,%X#", addr, value) < 0)
         return -1;
     return at91_wait_for_prompt (at91, NULL, 0, '>');
@@ -248,6 +275,8 @@ int at91_write_half_word (at91_t *at91, unsigned int addr, unsigned int value)
 
 int at91_write_word (at91_t *at91, unsigned int addr, unsigned int value)
 {
+    dbg ("write word @0x%x: 0x%x", addr, value);
+
     if (at91_command (at91, "W%X,%X#", addr, value) < 0)
         return -1;
     return at91_wait_for_prompt (at91, NULL, 0, '>');
@@ -256,6 +285,8 @@ int at91_write_word (at91_t *at91, unsigned int addr, unsigned int value)
 int at91_version (at91_t *at91, char *result, int max_len)
 {
     char *pos;
+    dbg ("version");
+
     if (at91_command (at91, "V#") < 0)
         return -1;
     if (at91_wait_for_prompt (at91, result, max_len, '>') < 0)
@@ -279,6 +310,8 @@ int at91_read_data (at91_t *at91, unsigned int address, unsigned char *data, int
     char discard[2];
     int i;
 
+    dbg ("read data @0x%x: 0x%x", address, length);
+
     for (i = 0; i < length; i += MAX_BLOCK_SIZE) {
         int this_len = min(MAX_BLOCK_SIZE, length - i);
         if (at91_command (at91, "R%X,%X#", address + i, this_len) < 0)
@@ -298,6 +331,8 @@ int at91_read_file (at91_t *at91, unsigned int address, const char *filename, in
     FILE *fp;
     unsigned char buffer[8192];
     unsigned int pos = 0;
+
+    dbg ("read file @0x%x: 0x%x", address, length);
 
     if ((fp = fopen (filename, "wb")) == NULL) {
         fprintf (stderr, "Unable to open '%s': %s [%d]\n", filename, strerror (errno), errno);
@@ -330,6 +365,8 @@ int at91_verify_file(at91_t *at91, unsigned int address, const char *filename)
     unsigned char *data, *data2;
     FILE *fp;
     int val;
+
+    dbg ("verify file @0x%x: %s", address, filename);
 
     if (stat (filename, &buf) < 0) {
         fprintf (stderr, "Unable to find '%s': %s\n", filename, strerror (errno));
@@ -365,6 +402,8 @@ int at91_verify_file(at91_t *at91, unsigned int address, const char *filename)
 int at91_write_data (at91_t *at91, unsigned int address, const unsigned char *data, int length)
 {
     int i;
+    dbg ("write data @0x%x: 0x%x", address, length);
+
     if (length == 0)
         return 0;
     for (i = 0; i < length; i += MAX_BLOCK_SIZE) {
@@ -385,6 +424,8 @@ int at91_write_file (at91_t *at91, unsigned int address, const char *filename)
     unsigned char buffer[8192];
     unsigned int pos = address;
     struct stat buf;
+
+    dbg ("write file @0x%x: %s", address, filename);
 
     if (stat (filename, &buf) < 0) {
         fprintf (stderr, "Unable to stat '%s': %s [%d]\n", filename, strerror (errno), errno);
@@ -420,12 +461,13 @@ int at91_write_file (at91_t *at91, unsigned int address, const char *filename)
 
 int at91_go (at91_t *at91, unsigned int address)
 {
-    char discard[2];
+    char discard;
+    dbg ("go @0x%x", address);
+
     if (at91_command (at91, "G%X#", address) < 0)
         return -1;
-    if (at91_read (at91, discard, 2) < 0) // drop carriage return
+    if (at91_read (at91, &discard, 1) < 0) // drop carriage return
         return -1;
-    //return at91_wait_for_prompt (at91, NULL, 0, '>'); 
     return 0;
 }
 

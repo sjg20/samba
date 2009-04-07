@@ -2,9 +2,6 @@ CC=gcc
 CFLAGS=-g -Wall -pipe
 LFLAGS=-lusb
 
-#CFLAGS+=`pkg-config --cflags lua5.1`
-#LFLAGS+=`pkg-config --libs lua5.1`
-
 HEADERS=*.h
 
 # Comment these out if you want a more simple interface

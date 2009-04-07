@@ -299,7 +299,7 @@ static int nand_write_page (at91_t *at91, unsigned int addr, const char *data)
     WRITE_NAND_ADDRESS ((addr >> 8) & 0xff);
     WRITE_NAND_ADDRESS ((addr >> 16) & 0xff);
 
-    WRITE_NAND_BLOCK (data, NAND_PAGE_SIZE);
+    WRITE_NAND_BLOCK ((unsigned char *)data, NAND_PAGE_SIZE);
     WRITE_NAND_BLOCK (oob, sizeof (oob));
 #if 0
     for (i = 0; i < NAND_PAGE_SIZE; i++)
@@ -414,7 +414,7 @@ static int nand_write_raw_page (at91_t *at91, unsigned int addr, const char *dat
     WRITE_NAND_ADDRESS ((addr >> 8) & 0xff);
     WRITE_NAND_ADDRESS ((addr >> 16) & 0xff);
 
-    WRITE_NAND_BLOCK (data, NAND_PAGE_SIZE);
+    WRITE_NAND_BLOCK ((unsigned char *)data, NAND_PAGE_SIZE);
     WRITE_NAND_BLOCK (oob, sizeof (oob));
 
     WRITE_NAND_COMMAND (CMD_WRITE_2);

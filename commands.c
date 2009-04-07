@@ -15,6 +15,17 @@
 #include "boards.h"
 
 static at91_t *at91 = NULL;
+static struct {
+    const char *name;
+    unsigned int vendor_id;
+    unsigned int product_id;
+    int (*init_func)(at91_t *);
+} baseboards[] = {
+    {"sn9260", 0x3eb, 0x6124, sn9260_init},
+    {"sn9g20", 0x3eb, 0x6124, sn9g20_init},
+    {"bigeye", 0x3eb, 0x6124, bigeye_init},
+};
+
 
 int command_exec (int argc, const char *argv[])
 {
@@ -27,19 +38,23 @@ int command_exec (int argc, const char *argv[])
 
     if (strcasecmp (argv[0], "open") == 0) {
         const char *model = "sn9260";
+        int i;
 
         if (argc >= 2)
             model = argv[1];
 
-        if (strcasecmp (model, "sn9260") == 0) {
-            at91 = at91_open (0x3eb, 0x6124);
-            if (!at91)
-                return -1;
-            return sn9260_init (at91);
-        } else {
-            fprintf (stderr, "Unknown AT91 baseboard model: %s\n", argv[1]);
-            return -1;
+        for (i = 0; i < sizeof (baseboards) / sizeof (baseboards[0]); i++) {
+            if (strcasecmp (baseboards[i].name, model) == 0) {
+                at91 = at91_open (baseboards[i].vendor_id, 
+                                  baseboards[i].product_id);
+                if (!at91)
+                    return -1;
+                return baseboards[i].init_func (at91);
+            }
         }
+
+        fprintf (stderr, "Unknown AT91 baseboard model: %s\n", argv[1]);
+        return -1;
     } else if (strcasecmp (argv[0], "close") == 0) {
         at91_close (at91);
         at91 = NULL;
@@ -50,7 +65,7 @@ int command_exec (int argc, const char *argv[])
         printf ("Version: %s\n", buffer);
     } else if (strcasecmp (argv[0], "go") == 0 && argc >= 2) {
         unsigned int addr = strtoul(argv[1], NULL, 0);
-        at91_go (at91, addr);
+        return at91_go (at91, addr);
     } else if (strcasecmp (argv[0], "readb") == 0 && argc >= 2) {
         unsigned int addr = strtoul (argv[1], NULL, 0);
         printf ("0x%8.8x = 0x%8.8x\n", addr, at91_read_byte (at91, addr));
@@ -89,7 +104,7 @@ int command_exec (int argc, const char *argv[])
         unsigned int baudrate = 115200;
         if (argc >= 2)
             baudrate = strtoul(argv[1], NULL, 0);
-        dbg_init (at91, BAUDRATE(MASTER_CLOCK, baudrate));
+        dbg_init (at91, BAUDRATE(baudrate));
     } else if (strcasecmp (argv[0], "debug_print") == 0) {
         int i;
         for (i = 1; i < argc; i++) {
@@ -130,7 +145,7 @@ int command_exec_str (char *command)
 {
     int nargs = 0;
     char *pos;
-    char *args[20];
+    const char *args[20];
 
     pos = command;
     while (pos && *pos && nargs < 20) {
@@ -178,9 +193,12 @@ int command_exec_file (const char *filename)
         if (strlen (buffer) == 0)
             continue;
 
-        if (command_exec_str (buffer) < 0)
+        if (command_exec_str (buffer) < 0) {
             retval = -1;
+            goto done;
+        }
     }
+done:
     fclose (fp);
 
     return retval;
