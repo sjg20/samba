@@ -1,0 +1,6 @@
+open sn9260
+nand erase 0x0 0x80000
+nand_write_file 0x0 /work/internal/builds/latest/bigeye-bootstrap-1.9/bigeye_bootstrap.bin
+nand_write_file 0x20000 /work/internal/builds/latest/bigeye-u-boot-1.1.6/u-boot.bin
+go 0x00010000
+

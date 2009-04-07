@@ -1,0 +1,5 @@
+open sn9260
+nand_erase 0x0 0x80000
+nand_write_file 0x0 /work/internal/builds/latest/sn9260-bootstrap-1.9/sn9260_bootstrap.bin
+nand_write_file 0x20000 /work/internal/builds/latest/snapper9260-u-boot-1.1.6/u-boot.bin
+
