@@ -205,8 +205,8 @@ static int at91_command (usb_dev_handle *at91, char *string,...)
         fprintf (stderr, "Attempt to send nul at91 command\n");
         return -1;
     }
-    buffer[len++] = '\r';
-    buffer[len++] = '\n';
+    //buffer[len++] = '\r';
+    //buffer[len++] = '\n';
     buffer[len++] = '\0';
     if (at91_write(at91, buffer, len) < 0) {
         fprintf (stderr, "Unable to write '%s' AT91 command\n", buffer);

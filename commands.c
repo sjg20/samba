@@ -13,6 +13,8 @@
 #include "sdramc.h"
 #include "pmc.h"
 #include "boards.h"
+#include "environment.h"
+#include "mkyaffs2image.h"
 
 static at91_t *at91 = NULL;
 static struct {
@@ -133,6 +135,30 @@ int command_exec (int argc, const char *argv[])
         const char *file = argv[2];
 
         return nand_write_raw_file (at91, addr, file);
+    } else if (strcasecmp (argv[0], "environment_init") == 0) {
+        return environment_init (0x20000);
+    } else if (strcasecmp (argv[0], "environment_save") == 0 && argc >= 2) {
+        int length;
+        unsigned addr = strtoul(argv[1], NULL, 0);
+        char *data;
+        if (environment_data (&data, &length) < 0)
+            return -1;
+        return nand_write (at91, addr, data, length);
+    } else if (strcasecmp (argv[0], "environment_variable") == 0 && argc >= 2) {
+        return environment_set (argv[1], argc >= 3 ? argv[2] : NULL);
+    } else if (strcasecmp (argv[0], "environment_file") == 0 && argc >= 2) {
+        return environment_update_from_file (argv[1]);
+    } else if (strcasecmp (argv[0], "print") == 0) {
+        int i;
+        for (i = 1; i < argc; i++)
+            printf ("%s ", argv[i]);
+        printf ("\n");
+#ifdef CONFIG_YAFFS_UTIL
+    } else if (strcasecmp (argv[0], "yaffs2") == 0 && argc >= 3) {
+        const char *file = argv[1];
+        const char *directory = argv[2];
+        return mkyaffs2_create (directory, file);
+#endif
     } else {
         fprintf (stderr, "Invalid command: %s\n", argv[0]);
         return -1;

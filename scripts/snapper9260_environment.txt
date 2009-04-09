@@ -1,0 +1,80 @@
+setenv model 9260
+setenv bootaddr 0x23000000
+setenv console ttyS0
+setenv yaffsroot /dev/mtdblock4
+setenv baudrate 115200
+
+# Snapper general utility scripts
+
+# User settings
+setenv ipaddr 192.168.2.200
+setenv serverip 192.168.2.25
+setenv gateway 192.168.2.254
+setenv netmask 255.255.255.0
+setenv rootpath /export/root
+setenv tftppath /tftpboot/snapper
+setenv kernel uImage-$model-$serial
+setenv fpga fpga.rbf-$serial
+
+setenv regen_scripts '
+  setenv common_bootargs console=$console,$baudrate lcd=$lcd baseboard=$baseboard baseboard_rev=$baseboard_rev ethaddr=$ethaddr $extra_bootargs ;
+  setenv net_bootargs ip=$ipaddr:$serverip:$gateway:$netmask:snapper:eth0:off nfsroot=$rootpath,v3,rsize=1024,wsize=1024 ;
+  setenv dhcp_bootargs ip=any nfsroot=$rootpath,v3,rsize=1024,wsize=1024 ;
+  setenv yaffs_bootargs root=$yaffsroot rootfstype=yaffs ip=$ipaddr:$serverip:$gateway:$netmask:snapper:eth0:off ;
+  setenv cramfs_bootargs root=$cramfsroot rootfstype=cramfs '
+
+setenv power_domains_init "echo Initing power domains..."
+setenv fpgainit "echo No FPGA on this module, or no FPGA init required"
+
+setenv serial_boot '
+       run regen_scripts;
+       setenv bootargs $common_bootargs $dhcp_bootargs;
+       loady &&
+       bootm'
+
+setenv bootcmd run power_domains_init
+
+setenv kernel_offset 0x0
+setenv yaffs_boot '
+  run regen_scripts; 
+  setenv bootargs $common_bootargs $yaffs_bootargs &&
+  nboot $bootaddr 0 $kernel_offset &&
+  bootm'
+
+setenv bootcmd $bootcmd \; run yaffs_boot
+setenv kernel_offset 0x80000
+setenv nfs_boot '
+  run regen_scripts;
+  run fpgainit; 
+  setenv bootargs $common_bootargs $net_bootargs; 
+  nfs $bootaddr $serverip:$rootpath/$kernel &&
+  bootm'
+
+setenv dhcp_boot '
+  setenv bootfile $tftppath/$kernel;
+  bootp &&
+  run regen_scripts; 
+  run fpgainit; 
+  setenv bootargs $common_bootargs $dhcp_bootargs &&
+  bootm'
+
+setenv fpga_boot '
+  run regen_scripts ;
+  setenv bootargs $common_bootargs $dhcp_bootargs;
+  setenv autoload n;
+  bootp &&
+  tftp $bootaddr $tftppath/$fpga &&
+  snap fpga $bootaddr &&
+  setenv bootfile $tftppath/$kernel && 
+  setenv autoload y &&
+  bootp &&
+  bootm'
+
+setenv bootcmd $bootcmd \; run dhcp_boot \; run nfs_boot
+setenv sn9260_power '
+       max7311 0 3 config 0 &&
+       max7311 0 3 output 0 &&
+       max7311 0 2 config 0 &&
+       max7311 0 2 output 0'
+
+setenv power_domains_init "$power_domains_init; run sn9260_power"
