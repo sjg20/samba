@@ -53,7 +53,7 @@ const char * mkyaffsimage_c_version = "$Id: mkyaffs2image.c,v 1.4 2007-02-14 01:
 #endif
 
  
-static int	layout_no;
+static int	layout_no = 1;
 
 static struct nand_oobinfo oob_layout[] = {
     /* KSI:
@@ -102,11 +102,11 @@ static int obj_id = YAFFS_NOBJECT_BUCKETS + 1;
 
 static int nObjects = 0, nDirectories = 0, nPages = 0;
 
-static int outFile;
+static int outFile = -1;
 
 static int error;
 
-static int convert_endian = 0;
+//static int convert_endian = 0;
 
 static int obj_compare(const void *a, const void * b)
 {
