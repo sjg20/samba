@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g -Wall -pipe
 LFLAGS=-lusb
-OBJECTS=at91sam_util.o at91sam.o commands.o nand.o nandecc.o sdramc.o pmc.o debug.o common.o boards.o environment.c crc32.o 
+OBJECTS=at91sam_util.o at91sam.o commands.o nand.o nandecc.o sdramc.o pmc.o debug.o common.o boards.o environment.o crc32.o 
 
 # Comment these out if you don't want YAFFS2 image support
 KDIR?=/home/andre/snapper/linux-2.6.20

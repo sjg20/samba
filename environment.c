@@ -48,7 +48,7 @@ int environment_init (int length)
 
 int environment_data (char **data, int *length)
 {
-    unsigned int *data32 = _local.data;
+    unsigned int *data32 = (unsigned int *)_local.data;
     unsigned int crc;
     crc = crc32(0, &_local.data[CRC_SIZE], _local.size - CRC_SIZE);
     *data32 = crc;
@@ -352,7 +352,7 @@ int environment_update_from_file (const char *filename)
             break;
 
         if (strcmp (buffer, "setenv") != 0) {
-            err ("Invalid command: '%s'", buffer);
+            fprintf (stderr, "Invalid command: '%s'\n", buffer);
             goto err;
         }
         if (skip_whitespace (fp) < 0)
