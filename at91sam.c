@@ -797,8 +797,9 @@ int at91_go (at91_t *at91, unsigned int address)
 
     if (at91_command (at91, "G%X#", address) < 0)
         return -1;
-    if (at91_read (at91, &discard, 1) < 0) // drop carriage return
-        return -1;
+    if (at91->usb) // have to get response when using USB, or it doesn't complete
+        if (at91_read (at91, &discard, 1) < 0) // drop carriage return
+            return -1;
     return 0;
 }
 
