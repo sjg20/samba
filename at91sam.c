@@ -65,16 +65,22 @@ static struct usb_device *find_usb_device(int vendor_id, int product_id)
     return NULL;
 }
 
+int at91_is_usb(at91_t *at91)
+{
+    return at91 && at91->usb;
+}
+
 at91_t *at91_open_serial(const char *device)
 {
     at91_t *at91 = NULL;
     struct termios options;
 
-    at91 = malloc (sizeof (at91));
+    at91 = malloc (sizeof (at91_t));
     if (!at91) {
         fprintf (stderr, "Out of memory\n");
         goto err;
     }
+    at91->usb = NULL;
     at91->serial = open (device, O_RDWR | O_NOCTTY);
     if (at91->serial < 0) {
         fprintf (stderr, "Unable to open '%s': %s\n", device, strerror (errno));
@@ -257,6 +263,7 @@ static int at91_read (at91_t *at91, unsigned char *buffer, int len)
             return -1;
         } else if (retval == 0) {
             fprintf (stderr, "Timeout waiting for AT91 data\n");
+            raise (SIGTRAP);
             return 0;
         }
         read_len = read(at91->serial, buffer, len);
@@ -355,7 +362,7 @@ int at91_init (at91_t *at91)
                 fprintf(stderr, "Error: init data write failure\n");
                 return -1;
             }
-            usleep (100 * 1000); // send the characters out slowly, to try and catch the unit
+            usleep (10 * 1000); // send the characters out slowly, to try and catch the unit
         }
 
         if (at91_wait_for_prompt (at91, NULL, 0, '>') < 0)
@@ -385,11 +392,11 @@ static int at91_command (at91_t *at91, char *string,...)
     }
     //buffer[len++] = '\r';
     //buffer[len++] = '\n';
-    //buffer[len++] = '\0';
     if (at91_write(at91, (unsigned char *)buffer, len) < 0) {
         fprintf (stderr, "Unable to write '%s' AT91 command\n", buffer);
         return -1;
     }
+    //buffer[len] = '\0';
     //printf ("Sent command: %s\n", buffer);
     return 0;
 }
@@ -500,7 +507,7 @@ static int at91_wait_for_ack (at91_t *at91)
         fprintf (stderr, "Transfer cancelled by other end (CRC Error)\n");
         return -1;
     }
-    if (tmp != 0x6) {
+    if (tmp != 0x06) {
         fprintf (stderr, "Didn't get an ACK, got 0x%x\n", tmp);
         return -1;
     }
@@ -571,24 +578,26 @@ static int at91_write_data_xmodem (at91_t *at91, unsigned int addr,
     return at91_wait_for_prompt (at91, NULL, 0, '>');
 }
 
-static int  at91_read_data_xmodem (at91_t *at91, unsigned int addr, 
-        unsigned char *data, int len)
+static int at91_read_data_xmodem (at91_t *at91, unsigned int addr, 
+        unsigned char *data, int len, int show_progress)
 {
     int block = 1;
     int pos = 0;
     unsigned char tmp[2];
     uint16_t crc;
 
+    //if (len % 128)
+        //fprintf (stderr, "Warning: Attempting to read a non 128 aligned length (%d bytes @ 0x%x)\n", len, addr);
+    //len = (len + 127) & ~128;
+
     if (at91_command (at91, "R%X,%X#", addr, len) < 0)
         return -1;
     if (at91_command (at91, "C") < 0)
         return -1;
 
-    if (len % 128)
-        fprintf (stderr, "Warning: Attempting to read a non 128 aligned length (%d bytes @ 0x%x)\n", len, addr);
-
     while (pos < len) {
-        dbg ("xmodem reading block %d", block);
+        int this_len = min(128, len - pos);
+        dbg ("xmodem reading block %d (%d)", block, this_len);
         do {
             if (at91_read_len (at91, tmp, 1) < 0)
                 return -1;
@@ -604,24 +613,31 @@ static int  at91_read_data_xmodem (at91_t *at91, unsigned int addr,
                     tmp[0], tmp[1], block, 255 - block);
             return -1;
         }
-        if (at91_read_len (at91, &data[pos], 128) < 0)
+        if (at91_read_len (at91, &data[pos], this_len) < 0)
             return -1;
         if (at91_read_len (at91, tmp, 2) < 0)
             return -1;
         // FIXME: Check CRC?
         block = (block + 1) % 256;
-        pos += 128;
+        pos += this_len;
 
 
         tmp[0] = 0x06;
         if (at91_write(at91, tmp, 1) < 0)
             return -1;
+        if (show_progress)
+            progress ("Read Data", pos, len);
     }
+    at91_wait_for_prompt (at91, NULL, 0, 0x4);
+
+    tmp[0] = 0x06;
+    if (at91_write(at91, tmp, 1) < 0)
+        return -1;
 
     return at91_wait_for_prompt (at91, NULL, 0, '>');
 }
 
-int at91_read_data (at91_t *at91, unsigned int address, unsigned char *data, int length)
+int at91_read_data (at91_t *at91, unsigned int address, unsigned char *data, int length, int show_progress)
 {
     unsigned char discard[2];
     int i;
@@ -642,10 +658,12 @@ int at91_read_data (at91_t *at91, unsigned int address, unsigned char *data, int
                 return -1;
             if (at91_wait_for_prompt (at91, NULL, 0, '>') < 0)
                 return -1;
+            if (show_progress)
+                progress ("Read Data", i, length);
         }
         return 0;
     } else if (at91->serial >= 0)
-        return at91_read_data_xmodem (at91, address, data, length);
+        return at91_read_data_xmodem (at91, address, data, length, show_progress);
 
     fprintf (stderr, "AT91 not connected\n");
     return -1;
@@ -667,7 +685,7 @@ int at91_read_file (at91_t *at91, unsigned int address, const char *filename, in
     while (pos < length) {
         progress ("Read File", pos, length);
         int len = min (sizeof (buffer), length - pos);
-        if (at91_read_data (at91, address + pos, buffer, len) < 0) {
+        if (at91_read_data (at91, address + pos, buffer, len, 0) < 0) {
             fclose (fp);
             return -1;
         }
@@ -691,16 +709,16 @@ int at91_verify_file(at91_t *at91, unsigned int address, const char *filename)
     FILE *fp;
     int val;
 
-    dbg ("verify file @0x%x: %s", address, filename);
-
     if (stat (filename, &buf) < 0) {
         fprintf (stderr, "Unable to find '%s': %s\n", filename, strerror (errno));
         return -1;
     }
 
+    dbg ("verify file @0x%x: %s [%ld]", address, filename, buf.st_size);
+
     data = malloc (buf.st_size);
 
-    if (at91_read_data (at91, address, data, buf.st_size) < 0) {
+    if (at91_read_data (at91, address, data, buf.st_size, 1) < 0) {
         free (data);
         return -1;
     }

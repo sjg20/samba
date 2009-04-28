@@ -166,7 +166,7 @@ static int nand_read_page (at91_t *at91, unsigned int uSectorAddr, char *pOutBuf
 	NAND_WAIT_READY();	/* Need to be done twice, READY detected too early the first time? */
 
         for(i=0; i<uBytesToRead; i+=NAND_OOB_SIZE)
-            at91_read_data (at91, AT91C_SMARTMEDIA_BASE, (unsigned char *)&pOutBuffer[i], NAND_OOB_SIZE);
+            at91_read_data (at91, AT91C_SMARTMEDIA_BASE, (unsigned char *)&pOutBuffer[i], NAND_OOB_SIZE, 0);
 
 	if (fZone == (ZONE_DATA|ZONE_INFO))
 	{
