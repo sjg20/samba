@@ -47,9 +47,15 @@ int command_exec (int argc, const char *argv[])
 
         for (i = 0; i < sizeof (baseboards) / sizeof (baseboards[0]); i++) {
             if (strcasecmp (baseboards[i].name, model) == 0) {
-                at91 = at91_open (baseboards[i].vendor_id, 
-                                  baseboards[i].product_id);
+                if (argc == 2)
+                    at91 = at91_open_usb (baseboards[i].vendor_id, 
+                            baseboards[i].product_id);
+                else
+                    at91 = at91_open_serial (argv[2]);
+
                 if (!at91)
+                    return -1;
+                if (at91_init (at91) < 0)
                     return -1;
                 return baseboards[i].init_func (at91);
             }
@@ -85,7 +91,12 @@ int command_exec (int argc, const char *argv[])
     } else if (strcasecmp (argv[0], "verify_file") == 0 && argc >= 3) {
         unsigned int addr = strtoul (argv[1], NULL, 0);
         const char *filename = argv[2];
-        return at91_verify_file (at91, addr, filename);
+        int i;
+        i = at91_verify_file (at91, addr, filename);
+        if (i < 0)
+            return i;
+        printf ("Verify of '%s'@0x%x %s\n", filename, addr, 
+                i ? "succeeded" : "failed");
     } else if (strcasecmp (argv[0], "writeb") == 0 && argc >= 3) {
         unsigned int addr = strtoul (argv[1], NULL, 0);
         unsigned int val = strtoul (argv[2], NULL, 0);

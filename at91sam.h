@@ -3,10 +3,13 @@
 
 #include "AT91SAM9260_inc.h"
 
-typedef struct usb_dev_handle at91_t;
+typedef struct at91_t at91_t;
 
-at91_t *at91_open(int vendor_id, int product_id);
+at91_t *at91_open_usb(int vendor_id, int product_id);
+at91_t *at91_open_serial(const char *device);
+
 void at91_close (at91_t *at91);
+int at91_init (at91_t *at91);
 
 int at91_version (at91_t *udev, char *result, int max_len);
 
