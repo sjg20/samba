@@ -13,7 +13,7 @@ unsigned int master_clock = 0;
 /********** 9260 ****************/
 #define SN9260_MASTER_CLOCK (180000000/2)
 /* PLLA = 18.432MHz * (126 + 1) / 13 = 180.07 MHz */
-#define SN9260_PLLA_SETTINGS ((1 << 29) | (126 << 16) | (0 << 14) | (0x3F << 8) | (13))
+#define SN9260_PLLA_SETTINGS ((1 << 29) | (126 << 16) | (2 << 13) | (0x3F << 8) | (13))
 /* Set PLLB to 18.432 MHz * (119 + 1) / ( 23 * 2 ^ 1 ) = 48.08 MHz */
 #define SN9260_PLLB_SETTINGS ((1 << 28) | (119 << 16) | (1 << 14) | (0x3f << 8) | 23)
 /* Switch MCK on PLLA output PCK = PLLA = 2 * MCK */
@@ -36,6 +36,9 @@ int sn9260_init (at91_t *at91)
 
     /* Configure PLLB */
     pmc_cfg_pllb(at91, SN9260_PLLB_SETTINGS, PLL_LOCK_TIMEOUT);
+
+	/* Configure the EBI Slave Slot Cycle to 64 */
+	writel( (readl((AT91C_BASE_MATRIX + MATRIX_SCFG3)) & ~0xFF) | 0x40, (AT91C_BASE_MATRIX + MATRIX_SCFG3));
 
     /** SETUP SDRAM */
 
