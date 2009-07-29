@@ -4,7 +4,7 @@ LFLAGS=-lusb
 OBJECTS=at91sam_util.o at91sam.o commands.o nand.o nandecc.o sdramc.o pmc.o debug.o common.o boards.o environment.o crc32.o 
 
 # Comment these out if you don't want YAFFS2 image support
-KDIR?=/home/andre/snapper/linux-2.6.20
+KDIR?=/home/andre/work/linux-2.6.20
 YAFFSDIR=$(KDIR)/fs/yaffs2
 CFLAGS+=-DCONFIG_YAFFS_UTIL
 OBJECTS+=mkyaffs2image.o yaffs_packedtags2.o yaffs_tagsvalidity.o yaffs_ecc.o
