@@ -1,7 +1,7 @@
 print Cleaning up Snapper 9260 module
 open sn9260
 print Erasing NAND
-nand_erase 0x0 0x1000000
+nand_erase 0x0 0x10000000
 
 print Writing Boot files
 nand_write_file 0x0 /work/internal/builds/latest/sn9260-bootstrap-1.9/sn9260_bootstrap.bin
@@ -9,7 +9,7 @@ nand_write_file 0x20000 /work/internal/builds/latest/snapper9260-u-boot-1.1.6/u-
 
 print Writing environment
 environment_init
-environment_variable serial 104
+environment_variable serial 110
 environment_variable ethaddr 00:50:c2:41:a4:00
 environment_file scripts/snapper9260_environment.txt
 environment_save 0x60000
