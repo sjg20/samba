@@ -49,7 +49,7 @@
 
 #define NAND_BLOCK_SIZE (128 * 1024)
 #define PAGES_PER_BLOCK (NAND_BLOCK_SIZE / NAND_PAGE_SIZE)
-#define MAX_BLOCKS ((4UL * 1024 * 1024 * 1024) / NAND_BLOCK_SIZE)
+#define MAX_BLOCKS ((4UL * 1024 * 1024) / (NAND_BLOCK_SIZE / 1024)) // 4GB max
 
 #define ADDR2BLOCK(a) ((a) / NAND_BLOCK_SIZE)
 
@@ -57,7 +57,7 @@ static char bbt[MAX_BLOCKS];
 
 int nand_init (at91_t *at91)
 {
-    memset(bbt, -1, sizeof(bbt));
+    memset(bbt, -1, MAX_BLOCKS);
     /* Code taken from Bootstrap v1.9 */
     writel(readl(AT91C_BASE_CCFG + CCFG_EBICSA) | AT91C_EBI_CS3A_SM, AT91C_BASE_CCFG + CCFG_EBICSA);
 
@@ -246,11 +246,15 @@ int nand_block_bad (at91_t *at91, unsigned int addr)
     unsigned char page[NAND_PAGE_SIZE + NAND_OOB_SIZE];
     unsigned char bad;
     int block = ADDR2BLOCK(addr);
+    if (block > MAX_BLOCKS) {
+        fprintf(stderr, "Address too large: 0x%x\n", addr);
+        return -1;
+    }
     if (bbt[block] == -1) {
         if (nand_read_page (at91, addr, (char *)page, ZONE_INFO) < 0)
             return -1;
         bad = page[NAND_PAGE_SIZE + 0];
-        bbt[block] = bad != 0xff;
+        bbt[block] = (bad != 0xff);
     }
     return bbt[block];
 }
@@ -373,7 +377,8 @@ int nand_write (at91_t *at91, unsigned int addr, const char *data, int length)
         if (ADDR2BLOCK(addr + i) != block) {
             block = ADDR2BLOCK(addr+i);
             if (nand_block_bad(at91, addr + i)) {
-                printf("Skipping write @ 0x%8.8x - bad block\n", addr + i);
+                printf("Skipping write @ 0x%8.8x - bad block                 \n", 
+                        addr + i);
                 i += NAND_BLOCK_SIZE;
                 continue;
             }
@@ -388,7 +393,7 @@ int nand_write (at91_t *at91, unsigned int addr, const char *data, int length)
         i += NAND_PAGE_SIZE;
     }
 
-    return 0;
+    return i;
 }
 
 int nand_write_file (at91_t *at91, unsigned int addr, const char *filename)
@@ -397,7 +402,7 @@ int nand_write_file (at91_t *at91, unsigned int addr, const char *filename)
     char buffer[NAND_PAGE_SIZE];
     int len;
     int total_length;
-    int pos = 0;
+    int pos = 0, written = 0;
     struct stat buf;
 
     if (stat (filename, &buf) < 0) {
@@ -413,7 +418,7 @@ int nand_write_file (at91_t *at91, unsigned int addr, const char *filename)
     }
 
     while (!feof (fp)) {
-        progress ("NAND Write File", pos, total_length);
+        progress ("NAND Write File", written, total_length);
         len = fread(buffer, 1, sizeof (buffer), fp);
         if (len < 0) {
             fprintf (stderr, "Failed to read from '%s': %s\n", filename, strerror (errno));
@@ -422,10 +427,10 @@ int nand_write_file (at91_t *at91, unsigned int addr, const char *filename)
         }
         if (len == 0)
             break;
-        nand_write(at91, addr + pos, buffer, len);
-        pos += len;
+        pos += nand_write(at91, addr + pos, buffer, len);
+        written += len;
     }
-    progress ("NAND Write File", pos, total_length);
+    progress ("NAND Write File", written, total_length);
 
     fclose (fp);
 
