@@ -47,8 +47,17 @@
 #define NAND_PAGE_SIZE 2048
 #define NAND_OOB_SIZE 64
 
+#define NAND_BLOCK_SIZE (128 * 1024)
+#define PAGES_PER_BLOCK (NAND_BLOCK_SIZE / NAND_PAGE_SIZE)
+#define MAX_BLOCKS ((4UL * 1024 * 1024 * 1024) / NAND_BLOCK_SIZE)
+
+#define ADDR2BLOCK(a) ((a) / NAND_BLOCK_SIZE)
+
+static char bbt[MAX_BLOCKS];
+
 int nand_init (at91_t *at91)
 {
+    memset(bbt, -1, sizeof(bbt));
     /* Code taken from Bootstrap v1.9 */
     writel(readl(AT91C_BASE_CCFG + CCFG_EBICSA) | AT91C_EBI_CS3A_SM, AT91C_BASE_CCFG + CCFG_EBICSA);
 
@@ -232,8 +241,29 @@ int nand_read_file (at91_t *at91, unsigned int from, const char *filename, int l
     return 0;
 }
 
+int nand_block_bad (at91_t *at91, unsigned int addr)
+{
+    unsigned char page[NAND_PAGE_SIZE + NAND_OOB_SIZE];
+    unsigned char bad;
+    int block = ADDR2BLOCK(addr);
+    if (bbt[block] == -1) {
+        if (nand_read_page (at91, addr, (char *)page, ZONE_INFO) < 0)
+            return -1;
+        bad = page[NAND_PAGE_SIZE + 0];
+        bbt[block] = bad != 0xff;
+    }
+    return bbt[block];
+}
+
 int nand_erase_block (at91_t *at91, unsigned int addr)
 {
+    int e = nand_block_bad(at91, addr);
+    if (e < 0)
+        return -1;
+    if (e) {
+        printf("\nSkipping bad block @0x%8.8x\n", addr);
+        return 0;
+    }
     NAND_ENABLE_CE();
     /* Push Erase_1 command */
     WRITE_NAND_COMMAND(CMD_ERASE_1);
@@ -255,6 +285,7 @@ int nand_erase_block (at91_t *at91, unsigned int addr)
     NAND_WAIT_READY();
     if (READ_NAND() & STATUS_ERROR)
     {
+        fprintf (stderr, "NAND Erase failure @ 0x%8.8x\n", addr);
         /* Error during block erasing */
         NAND_DISABLE_CE();
         return -1;
@@ -268,10 +299,9 @@ int nand_erase_block (at91_t *at91, unsigned int addr)
 int nand_erase (at91_t *at91, unsigned int addr, unsigned int length)
 {
     int i;
-    for (i = 0; i < length; i+=(128 * 1024))  {
+    for (i = 0; i < length; i+= NAND_BLOCK_SIZE) {
         progress ("NAND Erase", i, length);
-        if (nand_erase_block (at91, addr + i) < 0)
-            return -1;
+        nand_erase_block (at91, addr + i);
     }
     progress ("NAND Erase", length, length);
     return 0;
@@ -330,21 +360,32 @@ static int nand_write_page (at91_t *at91, unsigned int addr, const char *data)
 int nand_write (at91_t *at91, unsigned int addr, const char *data, int length)
 {
     char page[NAND_PAGE_SIZE];
-    int i;
+    int i, written = 0;
+    int block = -1;
 
     if (addr & (NAND_PAGE_SIZE - 1)) {
         fprintf (stderr, "NAND write failure: Address 0x%8.8x not on a page boundary\n", addr);
         return -1;
     }
 
-    for (i = 0; i < length; i+=NAND_PAGE_SIZE) {
-        int remaining = length - i;
+    for (i = 0; written < length; ) {
+        int remaining = length - written;
+        if (ADDR2BLOCK(addr + i) != block) {
+            block = ADDR2BLOCK(addr+i);
+            if (nand_block_bad(at91, addr + i)) {
+                printf("Skipping write @ 0x%8.8x - bad block\n", addr + i);
+                i += NAND_BLOCK_SIZE;
+                continue;
+            }
+        }
         if (remaining < NAND_PAGE_SIZE) {
-            memcpy (page, &data[i], remaining);
+            memcpy (page, &data[written], remaining);
             memset (&page[remaining], 0xff, NAND_PAGE_SIZE - remaining);
             nand_write_page (at91, addr + i, page);
         } else
-            nand_write_page (at91, addr + i, &data[i]);
+            nand_write_page (at91, addr + i, &data[written]);
+        written += NAND_PAGE_SIZE;
+        i += NAND_PAGE_SIZE;
     }
 
     return 0;
@@ -456,6 +497,7 @@ int nand_write_raw_file (at91_t *at91, unsigned int addr, const char *filename)
     int pos = 0;
     struct stat buf;
     int pages = 0;
+    int block = -1;
 
     if (stat (filename, &buf) < 0) {
         fprintf (stderr, "Unable to stat '%s': %s\n", filename, strerror (errno));
@@ -488,6 +530,18 @@ int nand_write_raw_file (at91_t *at91, unsigned int addr, const char *filename)
             fprintf (stderr, "Unable to read enough bytes from '%s'\n", filename);
             fclose (fp);
             return -1;
+        }
+        if (ADDR2BLOCK(addr + pages) != block) {
+            do {
+                int e;
+                e = nand_block_bad(at91, addr + pages);
+                if (e < 0)
+                    return -1;
+                if (e == 0)
+                    break;
+                pages += PAGES_PER_BLOCK;
+            } while (1);
+            block = ADDR2BLOCK(addr + pages);
         }
         nand_write_raw_page (at91, addr + pages * NAND_PAGE_SIZE, buffer);
         progress ("NAND Write Raw File", pos, length);

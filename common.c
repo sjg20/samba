@@ -24,7 +24,7 @@ int progress (const char *reason, uint64_t upto, uint64_t total)
     if (upto > total)
         upto = total;
 
-    printf ("\r%s: %lld%%", reason, upto * 100 / total);
+    printf ("%s: %lld%%", reason, upto * 100 / total);
     print_upto = upto;
     if (print_upto > 4096) {
         print_upto /= 1096;

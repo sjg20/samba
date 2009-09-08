@@ -44,5 +44,7 @@ int nand_write_file (at91_t *at91, unsigned int addr, const char *filename);
 int nand_write_raw (at91_t *at91, unsigned int addr, const char *data, int length);
 int nand_write_raw_file (at91_t *at91, unsigned int addr, const char *filename);
 
+int nand_block_bad (at91_t *at91, unsigned int addr);
+
 #endif
 
