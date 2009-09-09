@@ -51,6 +51,8 @@
 #define PAGES_PER_BLOCK (NAND_BLOCK_SIZE / NAND_PAGE_SIZE)
 #define MAX_BLOCKS ((4UL * 1024 * 1024) / (NAND_BLOCK_SIZE / 1024)) // 4GB max
 
+#define NEXT_BLOCK(a) (((a) + NAND_BLOCK_SIZE) & (NAND_BLOCK_SIZE - 1))
+
 #define ADDR2BLOCK(a) ((a) / NAND_BLOCK_SIZE)
 
 static char bbt[MAX_BLOCKS];
@@ -379,7 +381,7 @@ int nand_write (at91_t *at91, unsigned int addr, const char *data, int length)
             if (nand_block_bad(at91, addr + i)) {
                 printf("Skipping write @ 0x%8.8x - bad block                 \n", 
                         addr + i);
-                i += NAND_BLOCK_SIZE;
+                i = NEXT_BLOCK(i);
                 continue;
             }
         }
@@ -501,7 +503,7 @@ int nand_write_raw_file (at91_t *at91, unsigned int addr, const char *filename)
     int length;
     int pos = 0;
     struct stat buf;
-    int pages = 0;
+    int offset = 0;
     int block = -1;
 
     if (stat (filename, &buf) < 0) {
@@ -536,22 +538,22 @@ int nand_write_raw_file (at91_t *at91, unsigned int addr, const char *filename)
             fclose (fp);
             return -1;
         }
-        if (ADDR2BLOCK(addr + pages) != block) {
+        if (ADDR2BLOCK(addr + offset) != block) {
             do {
                 int e;
-                e = nand_block_bad(at91, addr + pages);
+                e = nand_block_bad(at91, addr + offset);
                 if (e < 0)
                     return -1;
                 if (e == 0)
                     break;
-                pages += PAGES_PER_BLOCK;
+                offset = NEXT_BLOCK(offset);
             } while (1);
-            block = ADDR2BLOCK(addr + pages);
+            block = ADDR2BLOCK(addr + offset);
         }
-        nand_write_raw_page (at91, addr + pages * NAND_PAGE_SIZE, buffer);
+        nand_write_raw_page (at91, addr + offset, buffer);
         progress ("NAND Write Raw File", pos, length);
         pos += l;
-        pages++;
+        offset += NAND_PAGE_SIZE;
     }
     progress ("NAND Write Raw File", pos, length);
 
