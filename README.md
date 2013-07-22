@@ -1,22 +1,24 @@
-= samba-script
+# samba-script
 
 AT91SAM9xxx SAM-BA control software for factory programming.
 
 
-= Confirming the connection
+# Confirming the connection
 To use samba-script, the AT91 device has to be put into SAM-BA mode. This is typically done by 
 ensuring that there is no other valid boot device. On the Snapper 9260 QSK boards, this can be
 done by holding down the SAMBA button whilst simultaneously pressing/releaseing the reset button.
 
 Once in SAM-BA mode, the device should show up on USB. To check on a Linux system, use lsusb:
+```sh
 andre@teanau:~$ lsusb 
 Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
 Bus 002 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
 Bus 003 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
 Bus 001 Device 086: ID 0403:ffa8 Future Technology Devices International, Ltd 
 *Bus 001 Device 091: ID 03eb:6124 Atmel Corp. at91sam SAMBA bootloader*
+```
 
-= Commands
+# Commands
 samba-script supports commands entered either interactively, or from a script. The following commands are supported:
 * open [boardname]
 * close
@@ -45,7 +47,7 @@ samba-script supports commands entered either interactively, or from a script. T
 * print [args...]
 * yaffs2 [file] [directory]
 
-= Example command script
+## Example command script
 open sn9260
 print  Erasing NAND
 nand_erase 0x0 0x80000
