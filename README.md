@@ -48,6 +48,7 @@ samba-script supports commands entered either interactively, or from a script. T
 * yaffs2 [file] [directory]
 
 ## Example command script
+```
 open sn9260
 print  Erasing NAND
 nand_erase 0x0 0x80000
@@ -55,4 +56,4 @@ nand_erase 0x0 0x80000
 print Writing Boot files
 nand_write_file 0x0 /path/to/sn9260_bootstrap.bin
 nand_write_file 0x20000 /path/to/u-boot.bin
-
+```
