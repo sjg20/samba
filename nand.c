@@ -256,7 +256,18 @@ int nand_block_bad (at91_t *at91, unsigned int addr)
         if (nand_read_page (at91, addr, (char *)page, ZONE_INFO) < 0)
             return -1;
         bad = page[NAND_PAGE_SIZE + 0];
-        bbt[block] = (bad != 0xff);
+
+        if (bad != 0xff)
+            bbt[block] = 1;
+        else {
+            /* Check the 2nd page */
+            if (nand_read_page (at91, addr + NAND_PAGE_SIZE, 
+                        (char *)page, ZONE_INFO) < 0)
+                return -1;
+            bad = page[NAND_PAGE_SIZE + 0];
+            bbt[block] = (bad != 0xff);
+        }
+
     }
     return bbt[block];
 }
@@ -379,7 +390,7 @@ int nand_write (at91_t *at91, unsigned int addr, const char *data, int length)
         if (ADDR2BLOCK(addr + i) != block) {
             block = ADDR2BLOCK(addr+i);
             if (nand_block_bad(at91, addr + i)) {
-                printf("Skipping write @ 0x%8.8x - bad block                 \n", 
+                printf("Skipping write @ 0x%8.8x - bad block                 \n",
                         addr + i);
                 i = NEXT_BLOCK(i);
                 continue;
@@ -443,7 +454,7 @@ static int nand_write_raw_page (at91_t *at91, unsigned int addr, const char *dat
 {
     int eccsteps, i, datidx, eccidx;
     unsigned char oob[64];
-    
+
     memcpy (oob, &data[NAND_PAGE_SIZE], sizeof (oob));
 
     //printf ("Getting ecc...\n");
@@ -514,7 +525,7 @@ int nand_write_raw_file (at91_t *at91, unsigned int addr, const char *filename)
     length = buf.st_size;
 
     if (length % (NAND_PAGE_SIZE + NAND_OOB_SIZE)){
-        fprintf (stderr, "NAND Write File: File size not a multiple of %d\n", 
+        fprintf (stderr, "NAND Write File: File size not a multiple of %d\n",
                 NAND_PAGE_SIZE + NAND_OOB_SIZE);
         return -1;
     }
@@ -523,7 +534,7 @@ int nand_write_raw_file (at91_t *at91, unsigned int addr, const char *filename)
         fprintf (stderr, "Unable to open '%s': %s\n", filename, strerror (errno));
         return -1;
     }
-    
+
     while (!feof (fp)) {
         int l = fread (buffer, 1, sizeof (buffer), fp);
         if (l < 0) {
