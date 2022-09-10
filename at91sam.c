@@ -47,15 +47,16 @@ static struct usb_device *find_usb_device(int vendor_id, int product_id)
                     && dev->descriptor.idProduct == product_id)
             {
                 char fname[30];
-                sprintf (fname, "/proc/bus/usb/%s/%s", bus->dirname, 
-                        dev->filename);
+                snprintf (fname, sizeof(fname), "/proc/bus/usb/%s/%s",
+                          bus->dirname, dev->filename);
                 if (access (fname, R_OK | W_OK) < 0) {
                     sprintf (fname, "/dev/bus/usb/%s/%s", bus->dirname, 
                             dev->filename);
                     if (access (fname, R_OK | W_OK) < 0) {
                         char command[100];
                         fprintf (stderr, "Warning: insufficient permissions to USB device files\n");
-                        sprintf (command, "sudo chmod a+rw %s", fname);
+                        snprintf (command, sizeof(fname), "sudo chmod a+rw %s",
+                                  fname);
                         printf ("command: %s\n", command);
                         system (command);
                     }
@@ -149,12 +150,12 @@ at91_t *at91_open_usb(int vendor_id, int product_id)
         fprintf (stderr, "\tdo you have sufficient permissions?\n");
         goto err;
     }
-
-    //if (usb_set_configuration(at91, 0) < 0) {
-        //fprintf(stderr, "Error: setting config 0 failed\n");
-        //goto err;
-    //}
-
+#if 0
+    if (usb_set_configuration(at91, 0) < 0) {
+        fprintf(stderr, "Error: setting config 0 failed\n");
+        goto err;
+    }
+#endif
     if(usb_claim_interface(at91->usb, 1) < 0) {
         perror("error: claiming interface 1 failed\n");
         goto err;
@@ -584,7 +585,6 @@ static int at91_read_data_xmodem (at91_t *at91, unsigned int addr,
     int block = 1;
     int pos = 0;
     unsigned char tmp[2];
-    uint16_t crc;
 
     //if (len % 128)
         //fprintf (stderr, "Warning: Attempting to read a non 128 aligned length (%d bytes @ 0x%x)\n", len, addr);

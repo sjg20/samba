@@ -24,7 +24,7 @@ int progress (const char *reason, uint64_t upto, uint64_t total)
     if (upto > total)
         upto = total;
 
-    printf ("%s: %lld%%", reason, upto * 100 / total);
+    printf ("%s: %lld%%", reason, (long long)(upto * 100 / total));
     print_upto = upto;
     if (print_upto > 4096) {
         print_upto /= 1096;
@@ -35,7 +35,7 @@ int progress (const char *reason, uint64_t upto, uint64_t total)
         }
     } else
         units = "B";
-    printf (" %lld%s", print_upto, units);
+    printf (" %lld%s", (long long)print_upto, units);
 
     if (total_time > 0) {
         int val = upto * 1000 / total_time;

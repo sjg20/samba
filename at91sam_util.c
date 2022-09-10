@@ -38,6 +38,9 @@ int main (int argc, char *argv[])
 #ifdef USE_READLINE
             char *line = readline (PROMPT);
             add_history (line);
+
+            if (!line)
+                break;
 #else
             char line[1024];
             printf (PROMPT);
@@ -45,8 +48,9 @@ int main (int argc, char *argv[])
 
             fgets (line, sizeof (line), stdin);
 #endif
+            line[strcspn(line, "\n")] = '\0';
 
-            if (!line || strncmp (line, "quit", 4) == 0 || strlen (line) == 0)
+            if (strncmp (line, "quit", 4) == 0 || strlen (line) == 0)
                 break;
 
             if (command_exec_str (line) < 0)

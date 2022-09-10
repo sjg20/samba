@@ -343,7 +343,7 @@
 #define 	AT91C_SMC_BAT_BYTE_SELECT          (0x0 <<  8) // (SMC) Write controled by ncs, nbs0, nbs1, nbs2, nbs3. Read controled by ncs, nrd, nbs0, nbs1, nbs2, nbs3.
 #define 	AT91C_SMC_BAT_BYTE_WRITE           (0x1 <<  8) // (SMC) Write controled by ncs, nwe0, nwe1, nwe2, nwe3. Read controled by ncs and nrd.
 #define AT91C_SMC_DBW             (0x3 << 12) // (SMC) Data Bus Width
-#define 	AT91C_SMC_DBW_WIDTH_EIGTH_BITS     (0x0 << 12) // (SMC) 8 bits.
+#define 	AT91C_SMC_DBW_WIDTH_EIGHT_BITS     (0x0 << 12) // (SMC) 8 bits.
 #define 	AT91C_SMC_DBW_WIDTH_SIXTEEN_BITS   (0x1 << 12) // (SMC) 16 bits.
 #define 	AT91C_SMC_DBW_WIDTH_THIRTY_TWO_BITS (0x2 << 12) // (SMC) 32 bits.
 #define AT91C_SMC_TDF             (0xF << 16) // (SMC) Data Float Time.

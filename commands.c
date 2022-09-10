@@ -24,8 +24,9 @@ static struct {
     int (*init_func)(at91_t *);
 } baseboards[] = {
     {"sn9260", 0x3eb, 0x6124, sn9260_init},
-    {"sn9g20", 0x3eb, 0x6124, sn9g20_init},
-    {"bigeye", 0x3eb, 0x6124, bigeye_init},
+//     {"sn9g20", 0x3eb, 0x6124, sn9g20_init},
+//     {"bigeye", 0x3eb, 0x6124, bigeye_init},
+//     {"gurnard", 0x3eb, 0x6124, gurnard_init},
 };
 
 

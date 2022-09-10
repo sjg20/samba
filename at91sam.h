@@ -2,6 +2,7 @@
 #define AT91SAM_H
 
 #include "AT91SAM9260_inc.h"
+// #include "AT91SAM9G45_inc.h"
 
 typedef struct at91_t at91_t;
 

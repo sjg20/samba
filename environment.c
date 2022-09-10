@@ -29,6 +29,7 @@ void environment_dump (void)
     }
 }
 
+/* not used
 static void cleanup (void)
 {
     if (_local.data) {
@@ -36,6 +37,7 @@ static void cleanup (void)
         _local.data = NULL;
     }
 }
+*/
 
 int environment_init (int length)
 {
